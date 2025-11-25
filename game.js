@@ -14,18 +14,24 @@ const player = {
     speed: 3
 };
 
-// 3. 키 입력 관리
+// 3. 키 입력 관리 (A, D를 J, L로 변경)
 const keys = {
     w: false,
-    a: false,
     s: false,
-    d: false
+    j: false, // 'a' 대신 'j'
+    l: false  // 'd' 대신 'l'
 };
 
 // 키 눌림 이벤트
 window.addEventListener('keydown', (e) => {
+    // 이동 키 처리
     if (keys[e.key] !== undefined) {
         keys[e.key] = true;
+    }
+    
+    // ★★★ 변경점: 'i' 키로 총 발사 ★★★
+    if (e.key === 'i') {
+        shoot(); // 딜레이 없이 발사 함수 호출
     }
 });
 
@@ -54,7 +60,7 @@ function drawPlayer() {
     ctx.closePath();
 }
 
-// 플레이어 위치 업데이트 (키 입력에 따라)
+// 플레이어 위치 업데이트 (A, D를 J, L로 변경)
 function updatePlayer() {
     if (keys.w && player.y - player.radius > 0) {
         player.y -= player.speed;
@@ -62,10 +68,10 @@ function updatePlayer() {
     if (keys.s && player.y + player.radius < canvas.height) {
         player.y += player.speed;
     }
-    if (keys.a && player.x - player.radius > 0) {
+    if (keys.j && player.x - player.radius > 0) { // 'a' -> 'j'
         player.x -= player.speed;
     }
-    if (keys.d && player.x + player.radius < canvas.width) {
+    if (keys.l && player.x + player.radius < canvas.width) { // 'd' -> 'l'
         player.x += player.speed;
     }
 }
@@ -88,8 +94,9 @@ function findNearestEnemy() {
     return nearestEnemy;
 }
 
-// 자동 총알 발사
-function autoShoot() {
+// ★★★ 변경점: 함수 이름 변경 (autoShoot -> shoot) ★★★
+// 수동 발사를 위한 함수
+function shoot() {
     const target = findNearestEnemy();
     if (!target) return; // 적이 없으면 발사 안 함
 
@@ -219,8 +226,9 @@ function gameLoop() {
 // 7. 게임 시작
 // 1초마다 적 생성
 setInterval(spawnEnemy, 1000);
-// 0.5초마다 자동 발사
-setInterval(autoShoot, 500);
+
+// ★★★ 변경점: 자동 발사 인터벌 제거 ★★★
+// setInterval(autoShoot, 500); // 이 줄을 삭제하거나 주석 처리합니다.
 
 // 게임 루프 시작
 gameLoop();
