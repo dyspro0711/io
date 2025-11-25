@@ -22,7 +22,7 @@ const player = {
 // 4. 구조물 배열
 let obstacles = []; // 충돌 O (벽, 바위)
 let buildings = []; // 렌더링 O, 충돌 X (바닥, 지붕 구역)
-let doors = []; // ★★★ 추가: 렌더링 O, 충돌 X (문)
+let doors = []; // 렌더링 O, 충돌 X (문)
 
 // 5. 키 입력 관리 (변경 없음)
 const keys = {
@@ -45,9 +45,8 @@ const enemySpeed = 1;
 
 // 7. 월드 생성 함수
 function generateWorld() {
-    // ★★★ 변경: 건물 수 줄이고, 바위 수 늘림
-    const NUM_BUILDINGS = 10; // (기존 20)
-    const NUM_OBSTACLES = 30; // (기존 15)
+    const NUM_BUILDINGS = 10; 
+    const NUM_OBSTACLES = 30;
     
     const WALL_THICKNESS = 10;
     const WALL_COLOR = '#333';
@@ -55,13 +54,13 @@ function generateWorld() {
     const FLOOR_COLOR = '#CD853F'; 
     const ROCK_COLOR = '#555';
     const DOOR_SIZE = 40;
-    const DOOR_COLOR = '#A0522D'; // ★★★ 추가: 문 색상 (Sienna)
+    const DOOR_COLOR = '#A0522D'; 
 
     // 건물 생성
     for (let i = 0; i < NUM_BUILDINGS; i++) {
-        // ★★★ 변경: 건물 크기 증가
-        const w = Math.random() * 150 + 150; // 150~300 (기존: 100~200)
-        const h = Math.random() * 150 + 150; // 150~300 (기존: 100~200)
+        // ★★★ 변경: 건물 크기 증가 (200~400)
+        const w = Math.random() * 200 + 200; // (기존 150~300)
+        const h = Math.random() * 200 + 200; // (기존 150~300)
         const x = Math.random() * (world.width - w);
         const y = Math.random() * (world.height - h);
 
@@ -78,18 +77,13 @@ function generateWorld() {
         
         // 3. 아래쪽 벽 + 문 틈
         const doorPosition = x + (w / 2) - (DOOR_SIZE / 2);
-        // 아래 벽 - 왼쪽
-        obstacles.push({ x: x, y: y + h - WALL_THICKNESS, width: (w / 2) - (DOOR_SIZE / 2), height: WALL_THICKNESS, color: WALL_COLOR });
-        // 아래 벽 - 오른쪽
-        obstacles.push({ x: doorPosition + DOOR_SIZE, y: y + h - WALL_THICKNESS, width: (w / 2) - (DOOR_SIZE / 2), height: WALL_THICKNESS, color: WALL_COLOR });
+        obstacles.push({ x: x, y: y + h - WALL_THICKNESS, width: (w / 2) - (DOOR_SIZE / 2), height: WALL_THICKNESS, color: WALL_COLOR }); // 왼쪽
+        obstacles.push({ x: doorPosition + DOOR_SIZE, y: y + h - WALL_THICKNESS, width: (w / 2) - (DOOR_SIZE / 2), height: WALL_THICKNESS, color: WALL_COLOR }); // 오른쪽
 
-        // 4. ★★★ 추가: 시각적인 문 생성 (doors 배열)
+        // 4. 시각적인 문
         doors.push({
-            x: doorPosition,
-            y: y + h - WALL_THICKNESS,
-            width: DOOR_SIZE,
-            height: WALL_THICKNESS,
-            color: DOOR_COLOR
+            x: doorPosition, y: y + h - WALL_THICKNESS,
+            width: DOOR_SIZE, height: WALL_THICKNESS, color: DOOR_COLOR
         });
     }
 
@@ -151,13 +145,11 @@ function drawBuildingFloors() {
     });
 }
 
-// ★★★ 추가: 문 그리기 ★★★
+// 문 그리기 (변경 없음)
 function drawDoors() {
     doors.forEach(door => {
         const screenX = door.x - camera.x;
         const screenY = door.y - camera.y;
-
-        // 화면 안에 보이는 문만 그리기
         if (screenX + door.width > 0 && screenX < canvas.width &&
             screenY + door.height > 0 && screenY < canvas.height) 
         {
@@ -181,21 +173,27 @@ function drawObstacles() {
     });
 }
 
-// 플레이어 그리기 (변경 없음)
+// ★★★ 변경: 플레이어 그리기 (버그 수정) ★★★
 function drawPlayer() {
-    const screenX = canvas.width / 2;
-    const screenY = canvas.height / 2;
-    // 몸체
+    // 맵 끝/집 근처 버그 수정:
+    // 무조건 (canvas.width / 2)가 아닌,
+    // 실제 월드 좌표(player.x)를 카메라(camera.x) 기준으로 변환한 위치에 그립니다.
+    const screenX = player.x - camera.x;
+    const screenY = player.y - camera.y;
+
+    // 1. 몸체 그리기
     ctx.beginPath();
-    ctx.arc(screenX, screenY, player.radius, 0, Math.PI * 2);
+    ctx.arc(screenX, screenY, player.radius, 0, Math.PI * 2); // screenX/Y 사용
     ctx.fillStyle = player.color;
     ctx.fill();
     ctx.closePath();
-    // 총구
+
+    // 2. 총구 그리기
     const aimX = screenX + Math.cos(player.aimAngle) * (player.radius + 10);
     const aimY = screenY + Math.sin(player.aimAngle) * (player.radius + 10);
+
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY);
+    ctx.moveTo(screenX, screenY); // screenX/Y 사용
     ctx.lineTo(aimX, aimY);
     ctx.strokeStyle = 'cyan';
     ctx.lineWidth = 3;
@@ -227,7 +225,7 @@ function updatePlayer() {
             collidedX = true; break;
         }
     }
-    if (!collIdedX) {
+    if (!collidedX) {
         player.x = nextX;
     }
     
@@ -280,7 +278,7 @@ function drawAndUpdateBullets() {
         bullet.y += bullet.velocity.y;
         const screenX = bullet.x - camera.x;
         const screenY = bullet.y - camera.y;
-        if (bullet.x < 0 || bullet.x > world.width || bullet.y < 0 || bullet.y > world.height) {
+        if (bullet.x < 0 || bullet.x > world.width || bullet.y < 0 || bullet.height) {
             bullets.splice(i, 1); continue;
         }
         if (screenX > 0 && screenX < canvas.width && screenY > 0 && screenY < canvas.height) {
@@ -323,7 +321,6 @@ function checkCollisions() {
             }
         }
     }
-
     // 2. 총알 vs 장애물(벽, 바위)
     for (let i = bullets.length - 1; i >= 0; i--) {
         const bullet = bullets[i];
@@ -345,20 +342,17 @@ function drawBuildingRoofs() {
         x: player.x - player.radius, y: player.y - player.radius,
         width: player.radius * 2, height: player.radius * 2
     };
-
     buildings.forEach(bldg => {
         const screenX = bldg.x - camera.x;
         const screenY = bldg.y - camera.y;
-
         if (screenX + bldg.width > 0 && screenX < canvas.width &&
             screenY + bldg.height > 0 && screenY < canvas.height) 
         {
             if (checkCollision(playerCollider, bldg)) {
-                ctx.globalAlpha = 0.3; // 30% 투명도
+                ctx.globalAlpha = 0.3; 
             } else {
-                ctx.globalAlpha = 1.0; // 100% 불투명
+                ctx.globalAlpha = 1.0; 
             }
-            
             ctx.fillStyle = bldg.roofColor;
             ctx.fillRect(screenX, screenY, bldg.width, bldg.height);
         }
@@ -366,7 +360,7 @@ function drawBuildingRoofs() {
     ctx.globalAlpha = 1.0; 
 }
 
-// 9. 메인 게임 루프 (★★★ 렌더링 순서 변경 ★★★)
+// 9. 메인 게임 루프 (변경 없음)
 function gameLoop() {
     // 1. 로직 업데이트
     updatePlayer();
@@ -377,15 +371,14 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 1. 화면 지우기
     drawBackground(); // 2. 배경 (연두색)
     drawBuildingFloors(); // 3. 건물 바닥
-    drawDoors(); // 4. ★★★ 문 그리기 (추가)
+    drawDoors(); // 4. 문 그리기
     drawObstacles(); // 5. 장애물 (벽, 바위)
     
-    // (이 사이에 그려지는 것들은 지붕 '아래'에 위치함)
     drawAndUpdateEnemies(); // 6. 적
-    drawPlayer(); // 7. 플레이어
+    drawPlayer(); // 7. 플레이어 (버그 수정됨)
     drawAndUpdateBullets(); // 8. 총알
 
-    drawBuildingRoofs(); // 9. 건물 지붕 (맨 위, 투명도 조절)
+    drawBuildingRoofs(); // 9. 건물 지붕 (맨 위)
 
     // 3. 다음 프레임 요청
     requestAnimationFrame(gameLoop);
