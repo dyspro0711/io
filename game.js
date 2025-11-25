@@ -1,4 +1,4 @@
-// 1. 캔버스 설정
+// 1. 캔버스 설정 조선 민주주의인민공화국
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 800;
