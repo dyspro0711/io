@@ -46,11 +46,11 @@ let enemies = [];
 let enemyBullets = [];
 const bulletSpeed = 5;
 
-// 7. ★★★ 변경: 월드 생성 함수 (건물 겹침 버그 수정) ★★★
+// 7. ★★★ 변경: 월드 생성 함수 (스폰 버그 수정) ★★★
 function generateWorld() {
     const NUM_BUILDINGS = 10; 
     const NUM_OBSTACLES = 30;
-    const BUILDING_PADDING = 50; // ★★★ 건물 사이 최소 간격
+    const BUILDING_PADDING = 50; 
     
     const WALL_THICKNESS = 10;
     const WALL_COLOR = '#333';
@@ -60,23 +60,18 @@ function generateWorld() {
     const DOOR_SIZE = 40;
     const DOOR_COLOR = '#A0522D'; 
 
-    // 건물 생성
+    // 건물 생성 (겹침 방지 로직 포함)
     for (let i = 0; i < NUM_BUILDINGS; i++) {
         const w = Math.random() * 200 + 200; 
         const h = Math.random() * 200 + 200; 
         const x = Math.random() * (world.width - w);
         const y = Math.random() * (world.height - h);
 
-        // ★★★ 추가: 건물 겹침 방지 로직 ★★★
-        // 1. 새로 만들 건물의 영역 (패딩 포함)
         const newBuildingRect = {
-            x: x - BUILDING_PADDING,
-            y: y - BUILDING_PADDING,
-            width: w + BUILDING_PADDING * 2,
-            height: h + BUILDING_PADDING * 2
+            x: x - BUILDING_PADDING, y: y - BUILDING_PADDING,
+            width: w + BUILDING_PADDING * 2, height: h + BUILDING_PADDING * 2
         };
 
-        // 2. 기존 건물들과 겹치는지 확인
         let collided = false;
         for (const b of buildings) {
             if (checkCollision(newBuildingRect, b)) {
@@ -84,15 +79,11 @@ function generateWorld() {
                 break;
             }
         }
-
-        // 3. 겹쳤다면, 이번 시도는 무효로 하고 다시 시도 (i--)
         if (collided) {
             i--;
             continue;
         }
-        // ★★★ 겹침 방지 로직 끝 ★★★
 
-        // (겹치지 않았으므로 건물 생성 진행)
         buildings.push({ x, y, width: w, height: h, roofColor: ROOF_COLOR, floorColor: FLOOR_COLOR });
 
         // 벽
@@ -100,13 +91,13 @@ function generateWorld() {
         obstacles.push({ x: x, y: y + WALL_THICKNESS, width: WALL_THICKNESS, height: h - (WALL_THICKNESS * 2), color: WALL_COLOR }); // 왼쪽
         obstacles.push({ x: x + w - WALL_THICKNESS, y: y + WALL_THICKNESS, width: WALL_THICKNESS, height: h - (WALL_THICKNESS * 2), color: WALL_COLOR }); // 오른쪽
         
-        // 아래쪽 벽 + 문 틈
+        // 아래쪽 벽 + 문
         const doorPosition = x + (w / 2) - (DOOR_SIZE / 2);
         obstacles.push({ x: x, y: y + h - WALL_THICKNESS, width: (w / 2) - (DOOR_SIZE / 2), height: WALL_THICKNESS, color: WALL_COLOR });
         obstacles.push({ x: doorPosition + DOOR_SIZE, y: y + h - WALL_THICKNESS, width: (w / 2) - (DOOR_SIZE / 2), height: WALL_THICKNESS, color: WALL_COLOR });
         doors.push({ x: doorPosition, y: y + h - WALL_THICKNESS, width: DOOR_SIZE, height: WALL_THICKNESS, color: DOOR_COLOR });
 
-        // 집에 적(슈터) 1~2명 확정 스폰
+        // 집에 적(슈터) 스폰
         const enemyCount = Math.floor(Math.random() * 2) + 1;
         for (let j = 0; j < enemyCount; j++) {
             const innerX = x + WALL_THICKNESS + 10;
@@ -118,16 +109,9 @@ function generateWorld() {
                 const spawnX = innerX + Math.random() * innerWidth;
                 const spawnY = innerY + Math.random() * innerHeight;
                 enemies.push({ 
-                    x: spawnX, 
-                    y: spawnY, 
-                    radius: 12, 
-                    color: 'purple',
-                    hp: 50, 
-                    maxHp: 50,
-                    type: 'shooter',
-                    speed: 0.8, // ★★★ 슈터 이동 속도
-                    isMoving: false, // ★★★ 슈터 상태
-                    shootCooldown: 120 
+                    x: spawnX, y: spawnY, radius: 12, color: 'purple',
+                    hp: 50, maxHp: 50, type: 'shooter',
+                    speed: 0.8, isMoving: false, shootCooldown: 120 
                 });
             }
         }
@@ -139,6 +123,24 @@ function generateWorld() {
         const h = Math.random() * 40 + 20;
         const x = Math.random() * (world.width - w);
         const y = Math.random() * (world.height - h);
+
+        // ★★★ 추가: 바위가 건물 안에 스폰되는 버그 수정 ★★★
+        const rockCollider = { x: x, y: y, width: w, height: h };
+        let collidedWithBuilding = false;
+        for (const b of buildings) {
+            // 건물의 실제 영역(바닥)과 겹치는지 확인
+            if (checkCollision(rockCollider, b)) { 
+                collidedWithBuilding = true;
+                break;
+            }
+        }
+
+        if (collidedWithBuilding) {
+            i--; // 겹쳤으면 다시 시도
+            continue;
+        }
+        // ★★★ 버그 수정 끝 ★★★
+
         obstacles.push({ x, y, width: w, height: h, color: ROCK_COLOR });
     }
 }
@@ -162,15 +164,14 @@ function hasLineOfSight(x1, y1, x2, y2) {
     const step = 10, numSteps = dist / step;
     const stepX = dx / numSteps, stepY = dy / numSteps;
     let currX = x1, currY = y1;
-
     for (let i = 0; i < numSteps; i++) {
         currX += stepX; currY += stepY;
         const pointCollider = { x: currX, y: currY, width: 1, height: 1 };
         for (const obs of obstacles) {
-            if (checkCollision(pointCollider, obs)) return false; // 막힘
+            if (checkCollision(pointCollider, obs)) return false; 
         }
     }
-    return true; // 보임
+    return true; 
 }
 
 // (그리기 함수들: drawBackground, drawBuildingFloors, drawDoors, drawObstacles - 변경 없음)
@@ -229,15 +230,13 @@ function drawPlayer() {
     ctx.globalAlpha = 1.0;
 }
 
-// HUD 그리기 (변경 없음)
+// HUD, GameOver 그리기 (변경 없음)
 function drawHud() {
     ctx.fillStyle = 'grey'; ctx.fillRect(10, 10, 200, 20);
     const hpPercent = Math.max(0, player.hp) / player.maxHp;
     ctx.fillStyle = 'red'; ctx.fillRect(10, 10, 200 * hpPercent, 20);
     ctx.strokeStyle = 'black'; ctx.strokeRect(10, 10, 200, 20);
 }
-
-// 게임 오버 그리기 (변경 없음)
 function drawGameOver() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -252,25 +251,18 @@ function updatePlayer() {
     if (player.damageCooldown > 0) player.damageCooldown--;
     if (keys.j) player.aimAngle -= player.rotationSpeed;
     if (keys.l) player.aimAngle += player.rotationSpeed;
-    
     let nextX = player.x, nextY = player.y;
-    if (keys.w) nextY -= player.speed;
-    if (keys.s) nextY += player.speed;
-    if (keys.a) nextX -= player.speed;
-    if (keys.d) nextX += player.speed;
-    
+    if (keys.w) nextY -= player.speed; if (keys.s) nextY += player.speed;
+    if (keys.a) nextX -= player.speed; if (keys.d) nextX += player.speed;
     const playerRadius = player.radius;
     let playerColliderX = { x: nextX - playerRadius, y: player.y - playerRadius, width: playerRadius * 2, height: playerRadius * 2 };
     let playerColliderY = { x: player.x - playerRadius, y: nextY - playerRadius, width: playerRadius * 2, height: playerRadius * 2 };
-    
     let collidedX = false;
     for (const obs of obstacles) if (checkCollision(playerColliderX, obs)) { collidedX = true; break; }
     if (!collidedX) player.x = nextX;
-    
     let collidedY = false;
     for (const obs of obstacles) if (checkCollision(playerColliderY, obs)) { collidedY = true; break; }
     if (!collidedY) player.y = nextY;
-
     player.x = Math.max(player.radius, Math.min(world.width - player.radius, player.x));
     player.y = Math.max(player.radius, Math.min(world.height - player.radius, player.y));
 }
@@ -297,7 +289,7 @@ function enemyShoot(enemy) {
     enemy.shootCooldown = 120;
 }
 
-// 적 스폰 (변경 없음)
+// ★★★ 변경: 적 스폰 (AI 회피용 변수 추가) ★★★
 function spawnEnemy() {
     const distance = Math.max(canvas.width / 2, canvas.height / 2) + 50;
     const angle = Math.random() * Math.PI * 2;
@@ -309,7 +301,9 @@ function spawnEnemy() {
         x: x, y: y, radius: 10, color: 'red',
         hp: 30, maxHp: 30,
         type: 'chaser', 
-        speed: 1
+        speed: 1,
+        stuckTimer: 0, // ★★★ 회피용: 막힌 시간
+        lastPosition: { x: x, y: y } // ★★★ 회피용: 이전 위치
     });
 }
 
@@ -341,7 +335,7 @@ function drawAndUpdateEnemyBullets() {
     }
 }
 
-// ★★★ 변경: 적 그리기/업데이트 (AI 로직 전체 수정) ★★★
+// ★★★ 변경: 적 그리기/업데이트 (추격자 AI 회피 로직 추가) ★★★
 function drawAndUpdateEnemies() {
     for (let i = enemies.length - 1; i >= 0; i--) {
         const enemy = enemies[i];
@@ -352,35 +346,51 @@ function drawAndUpdateEnemies() {
         const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
 
         if (enemy.type === 'chaser') {
-            // '추격자' (빨간색) AI: 플레이어 따라가기 (벽 충돌 처리)
-            nextX += Math.cos(angle) * enemy.speed;
-            nextY += Math.sin(angle) * enemy.speed;
+            // ★★★ 추가: 추격자(빨간 적) AI 회피 로직 ★★★
+            // 1. 이전 프레임과 비교해 움직였는지 확인
+            const distMoved = Math.hypot(enemy.x - enemy.lastPosition.x, enemy.y - enemy.lastPosition.y);
+            if (distMoved < 0.1) { // 거의 안 움직였으면
+                enemy.stuckTimer++; // 막힘 스택 +1
+            } else {
+                enemy.stuckTimer = 0; // 움직였으면 리셋
+                enemy.lastPosition = { x: enemy.x, y: enemy.y };
+            }
+
+            // 2. 1초(60프레임) 이상 막혔으면 회피 기동
+            if (enemy.stuckTimer > 60) {
+                // 플레이어 기준 90도 (좌/우 랜덤) 방향으로 이동
+                const evadeAngle = angle + (Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2);
+                nextX += Math.cos(evadeAngle) * enemy.speed;
+                nextY += Math.sin(evadeAngle) * enemy.speed;
+                // 1.5초가 지나면 타이머 강제 리셋 (무한 회피 방지)
+                if (enemy.stuckTimer > 90) enemy.stuckTimer = 0; 
+            } else {
+                // 3. 안 막혔으면: 플레이어에게 직진 (기존 로직)
+                nextX += Math.cos(angle) * enemy.speed;
+                nextY += Math.sin(angle) * enemy.speed;
+            }
+
         } 
         else if (enemy.type === 'shooter') {
-            // '슈터' (보라색) AI
+            // '슈터' (보라색) AI (이전과 동일)
             if (enemy.shootCooldown > 0) enemy.shootCooldown--;
             const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
             
             if (dist < 400) { // 사거리 내
                 if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
-                    // 1. 시야 확보: 정지하고 사격
                     enemy.isMoving = false;
-                    if (enemy.shootCooldown <= 0) {
-                        enemyShoot(enemy);
-                    }
+                    if (enemy.shootCooldown <= 0) enemyShoot(enemy);
                 } else {
-                    // 2. 시야 미확보: 플레이어 방향으로 이동
                     enemy.isMoving = true;
                     nextX += Math.cos(angle) * enemy.speed;
                     nextY += Math.sin(angle) * enemy.speed;
                 }
             } else {
-                // 3. 사거리 밖: 정지
                 enemy.isMoving = false;
             }
         }
 
-        // --- 2. ★★★ 적 이동 및 충돌 처리 (플레이어와 동일한 로직) ★★★
+        // --- 2. 적 이동 및 충돌 처리 (변경 없음) ---
         const enemyRadius = enemy.radius;
         let enemyColliderX = { x: nextX - enemyRadius, y: enemy.y - enemyRadius, width: enemyRadius * 2, height: enemyRadius * 2 };
         let enemyColliderY = { x: enemy.x - enemyRadius, y: nextY - enemyRadius, width: enemyRadius * 2, height: enemyRadius * 2 };
@@ -392,9 +402,8 @@ function drawAndUpdateEnemies() {
         let collidedY = false;
         for (const obs of obstacles) if (checkCollision(enemyColliderY, obs)) { collidedY = true; break; }
         if (!collidedY) enemy.y = nextY;
-        // ★★★ 충돌 처리 끝 ★★★
 
-        // --- 3. 그리기 (화면 좌표 기준) ---
+        // --- 3. 그리기 (변경 없음) ---
         const screenX = enemy.x - camera.x;
         const screenY = enemy.y - camera.y;
         if (screenX > -enemy.radius && screenX < canvas.width + enemy.radius && 
@@ -404,7 +413,6 @@ function drawAndUpdateEnemies() {
             ctx.arc(screenX, screenY, enemy.radius, 0, Math.PI * 2);
             ctx.fillStyle = enemy.color; ctx.fill(); ctx.closePath();
             
-            // 적 HP 바
             if (enemy.hp < enemy.maxHp) {
                 const hpPercent = enemy.hp / enemy.maxHp;
                 ctx.fillStyle = 'red';
@@ -419,7 +427,6 @@ function drawAndUpdateEnemies() {
 // 충돌 감지 (변경 없음)
 function checkCollisions() {
     if (player.hp <= 0) return;
-
     // 1. 플레이어 총알 vs 적
     for (let i = enemies.length - 1; i >= 0; i--) {
         const enemy = enemies[i];
@@ -427,38 +434,31 @@ function checkCollisions() {
             const bullet = bullets[j];
             const distance = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y); 
             if (distance < enemy.radius + bullet.radius) {
-                bullets.splice(j, 1);
-                enemy.hp -= 10; 
+                bullets.splice(j, 1); enemy.hp -= 10; 
                 if (enemy.hp <= 0) enemies.splice(i, 1);
                 break; 
             }
         }
     }
-
     // 2. 적 총알 vs 플레이어
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const bullet = enemyBullets[i];
         const distance = Math.hypot(bullet.x - player.x, bullet.y - player.y);
         if (distance < player.radius + bullet.radius && player.damageCooldown <= 0) {
-            enemyBullets.splice(i, 1);
-            player.hp -= 15;
-            player.damageCooldown = 60;
+            enemyBullets.splice(i, 1); player.hp -= 15; player.damageCooldown = 60;
             break;
         }
     }
-
-    // 3. '추격자' 적 vs 플레이어 (몸통 박치기)
+    // 3. '추격자' 적 vs 플레이어
     for (const enemy of enemies) {
         if (enemy.type === 'chaser') {
             const distance = Math.hypot(enemy.x - player.x, enemy.y - player.y);
             if (distance < player.radius + enemy.radius && player.damageCooldown <= 0) {
-                player.hp -= 10;
-                player.damageCooldown = 60;
+                player.hp -= 10; player.damageCooldown = 60;
                 break;
             }
         }
     }
-
     // 4. 플레이어 총알 vs 장애물
     for (let i = bullets.length - 1; i >= 0; i--) {
         const bullet = bullets[i];
@@ -469,7 +469,6 @@ function checkCollisions() {
             }
         }
     }
-
     // 5. 적 총알 vs 장애물
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const bullet = enemyBullets[i];
@@ -500,31 +499,17 @@ function drawBuildingRoofs() {
 // 9. 메인 게임 루프 (변경 없음)
 function gameLoop() {
     // 1. 로직 업데이트
-    updatePlayer();
-    updateCamera(); 
-    checkCollisions(); 
-
+    updatePlayer(); updateCamera(); checkCollisions(); 
     // 2. 그리기
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
-    drawBackground(); 
-    drawBuildingFloors();
-    drawDoors(); 
-    drawObstacles(); 
-    
-    drawAndUpdateEnemies(); // (AI 업데이트 포함)
-    drawPlayer(); 
-    drawAndUpdateBullets(); 
-    drawAndUpdateEnemyBullets(); 
-
-    drawBuildingRoofs(); 
-    drawHud(); 
-
+    drawBackground(); drawBuildingFloors(); drawDoors(); drawObstacles(); 
+    drawAndUpdateEnemies(); 
+    drawPlayer(); drawAndUpdateBullets(); drawAndUpdateEnemyBullets(); 
+    drawBuildingRoofs(); drawHud(); 
     // 3. 게임 오버 확인
     if (player.hp <= 0) {
-        drawGameOver();
-        return; 
+        drawGameOver(); return; 
     }
-
     // 4. 다음 프레임 요청
     requestAnimationFrame(gameLoop);
 }
