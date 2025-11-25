@@ -7,8 +7,8 @@ canvas.height = 600;
 
 // ★★★ 추가: 월드(맵) 크기 설정
 const world = {
-    width: 3000,
-    height: 3000
+    width: 30000,
+    height: 40000
 };
 
 // ★★★ 추가: 카메라 설정
